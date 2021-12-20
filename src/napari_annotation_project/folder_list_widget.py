@@ -1,3 +1,4 @@
+from pathlib import Path
 from qtpy.QtWidgets import QListWidget
 from qtpy.QtCore import Qt
 
@@ -10,8 +11,6 @@ class FolderList(QListWidget):
         self.viewer = viewer
         self.setAcceptDrops(True)
         self.setDragEnabled(True)
-
-        self.folder_path = None
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:
@@ -33,7 +32,10 @@ class FolderList(QListWidget):
             
             for url in event.mimeData().urls():
                 file = str(url.toLocalFile())
-                self.addItem(file)
+                if Path(file).is_dir():
+                    raise NotImplementedError("Folder drag and drop not implemented yet")
+                else:
+                    self.addItem(file)
 
     def select_first_file(self):
         

@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 import numpy as np
 from skimage.io import imsave, imread
@@ -124,28 +125,31 @@ class ProjectWidget(QWidget):
         self.ndim = None
 
     def _add_connections(self):
+        
         self.file_list.model().rowsInserted.connect(self._update_files_params)
-        #self.file_list.model().rowsRemoved.connect(self._update_files_params)
-
         self.file_list.currentItemChanged.connect(self._on_select_file)
         self.btn_remove_file.clicked.connect(self._on_remove_file)
-        self.sel_channel.currentItemChanged.connect(self.update_channels_param)
+        self.sel_channel.currentItemChanged.connect(self._update_channels_param)
         self.check_fixed_roi_size.stateChanged.connect(self._on_fixed_roi_size)
         self.btn_add_roi.clicked.connect(self._on_click_add_roi_fixed)
         self.btn_project_folder.clicked.connect(self._on_click_select_project)
-        self.btn_save_annotation.clicked.connect(self._save_annotations)
+        self.btn_save_annotation.clicked.connect(self.save_annotations)
         self.btn_load_project.clicked.connect(self._load_project)
         self.btn_export_data.clicked.connect(self._export_data)
         self.btn_export_folder.clicked.connect(self._on_click_select_export_folder)
 
     def open_file(self):
-        item = self.file_list.currentItem()
-        image_name = item.text()
+        """Open file selected in list"""
+        image_name = self.file_list.currentItem().text()
+        # clear existing layers. Suspend roi update while doing so, as 
+        # roi layer suppresion would trigger a roi update and copy old rois to
+        # the new file
         if 'rois' in [x.name for x in self.viewer.layers]:
-            self.viewer.layers['rois'].events.set_data.disconnect(self.update_roi_param)
+            self.viewer.layers['rois'].events.set_data.disconnect(self._update_roi_param)
         self.viewer.layers.clear()
         if 'rois' in [x.name for x in self.viewer.layers]:
-            self.viewer.layers['rois'].events.set_data.connect(self.update_roi_param)
+            self.viewer.layers['rois'].events.set_data.connect(self._update_roi_param)
+        # open image and make sure dimensions match previous images
         self.viewer.open(Path(image_name))
         if self.ndim is not None:
             newdim = self.viewer.layers[0].data.ndim
@@ -169,22 +173,24 @@ class ProjectWidget(QWidget):
 
 
     def _on_click_select_export_folder(self):
-        """Interactively select folder to analyze"""
+        """Interactively select folder where to save annotations and rois"""
 
         self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Export folder")))
         self.display_export_folder.setText(self.export_folder.as_posix())
 
 
     def _update_files_params(self):
+
         self.params.file_paths = [self.file_list.item(i).text() for i in range(self.file_list.count())]
 
-    def update_channels_param(self):
+    def _update_channels_param(self):
 
         if self.sel_channel.currentItem() is not None:
             self.params.channels[self._get_current_file()] = self.sel_channel.currentItem().text()
-            #self.params.channels[self._get_current_param_file_index()] = self.sel_channel.currentItem().text()
 
     def _on_fixed_roi_size(self):
+        """Display roi options when fixed roi size is selected"""
+
         if self.check_fixed_roi_size.isChecked():
             self.roi_size.setVisible(True)
             self.btn_add_roi.setVisible(True)
@@ -193,12 +199,15 @@ class ProjectWidget(QWidget):
             self.btn_add_roi.setVisible(False)
             
     def save_roi_to_csv(self, event):
-        """Unusued roi export function to csv file"""
+        """Unused roi export function to csv file via pandas"""
+
         if len(self.viewer.layers['rois'].data) > 0:
             rois = pd.DataFrame([x.flatten() for x in self.viewer.layers['rois'].data])
             rois.to_csv(self._create_annotation_filename_current(extension='_rois.csv'), index=False)
         
-    def roi_to_int_on_mouse_release(self, layer, event):
+    def _roi_to_int_on_mouse_release(self, layer, event):
+        """Round roi coordinates to integer on mouse release"""
+
         yield
         while event.type == 'mouse_move':
             yield
@@ -206,7 +215,8 @@ class ProjectWidget(QWidget):
             self.viewer.layers['rois'].data = [np.around(x) for x in self.viewer.layers['rois'].data]
     
     def _on_click_add_roi_fixed(self):
-        
+        """Add roi of fixed size to current roi layer"""
+
         current_dim_pos = self.viewer.dims.current_step
         new_roi = np.array(current_dim_pos)*np.ones((4, self.ndim))
         new_roi[:,-2::] = np.array([
@@ -216,11 +226,12 @@ class ProjectWidget(QWidget):
             [self.roi_size.value(),0]])
         self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r', edge_width=10)
 
-    def update_roi_param(self, event):
+    def _update_roi_param(self, event):
+        """Live update rois in the params object and the saved parameters file"""
+        
         rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
         rois = [[x.item() for x in y] for y in rois]
         
-        #self.params.rois[self._get_current_param_file_index()] = rois
         self.params.rois[self._get_current_file()] = rois
         self.params.save_parameters()
 
@@ -231,12 +242,13 @@ class ProjectWidget(QWidget):
         return file_index
 
     def _get_current_file(self):
-        
+        """Get current file as text"""
+
         file_index = self.file_list.currentItem().text()
         return file_index
 
     def _on_click_select_project(self):
-        """Select folder where to save the analysis."""
+        """Select folder where to save rois and annotations."""
 
         self.project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
         if not self.project_path.joinpath('annotations').exists():
@@ -245,6 +257,7 @@ class ProjectWidget(QWidget):
         self.params.project_path = self.project_path.as_posix()
 
     def _add_annotation_layer(self):
+
         self.viewer.add_labels(
             data=np.zeros((self.viewer.layers[0].data.shape), dtype=np.uint16),
             name='annotations'
@@ -257,13 +270,27 @@ class ProjectWidget(QWidget):
             name='rois', edge_color='red', face_color=[0,0,0,0], edge_width=10)
         
         # synchronize roi coordinates with those saved in the params
-        self.viewer.layers['rois'].events.set_data.connect(self.update_roi_param)
+        self.viewer.layers['rois'].events.set_data.connect(self._update_roi_param)
         
         # convert rois to integers whenever drawing is over
-        self.roi_layer.mouse_drag_callbacks.append(self.roi_to_int_on_mouse_release)
+        self.roi_layer.mouse_drag_callbacks.append(self._roi_to_int_on_mouse_release)
 
     def _create_annotation_filename_current(self, filename=None, extension='_annot.tif'):
+        """Create a path name based on the current file path stem.
         
+        Parameters
+        ----------
+        filename: str or Path
+            if None, use the current file name
+        extension: str
+            suffix of the file name
+
+        Returns
+        -------
+        complete_name: Path
+
+        """
+
         if self.annotation_path is None:
             self._on_click_select_project()
         if filename is None:
@@ -275,6 +302,9 @@ class ProjectWidget(QWidget):
         return complete_name
 
     def _load_project(self, event):
+        """Load an existing project. The chosen folder needs to contain an
+        appropriately formatted Parameters.yml file."""
+
         self.params = Param()
         self.project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
 
@@ -286,14 +316,16 @@ class ProjectWidget(QWidget):
         for f in self.params.file_paths:
             self.file_list.addItem(f)
 
-    def _save_annotations(self, event=None, filename=None):
-        
+    def save_annotations(self, event=None, filename=None):
+        """Save annotations in default location or in the specified location."""
+
         data = self.viewer.layers['annotations'].data
         imsave(self._create_annotation_filename_current(filename), data, compress=1, check_contrast=False)
         self.params.save_parameters()
 
     def _export_data(self, event):
-        
+        """Export cropped data of the images and the annotations using the rois."""
+
         if self.export_folder is None:
             self._on_click_select_export_folder()
 
@@ -305,7 +337,6 @@ class ProjectWidget(QWidget):
             labels_path.mkdir()
         
         image_counter = 0
-        #name_dict = ['file_name': [], 'image_index': [], 'roi_index': []]
         fieldnames = ['file_name', 'image_index', 'roi_index']
         name_dict = []
         for i in range(self.file_list.count()):
@@ -334,50 +365,48 @@ class ProjectWidget(QWidget):
                 imsave(labels_path.joinpath(f'{self._target_name.text()}{image_counter}.tif'), annotations_roi, check_contrast=False)
                 image_counter += 1
                 temp_dict = {'file_name': self.file_list.currentItem().text(), 'image_index': image_counter, 'roi_index': j}
-                #name_dict['file_name'].append(self.file_list.currentItem().text())
-                #name_dict['image_index'].append(image_counter)
-                #name_dict['roi_index'].append(j)
                 name_dict.append(temp_dict)
-        #name_dict_pd = pd.DataFrame(name_dict)
-        #name_dict_pd.to_csv(self.export_folder.joinpath('rois_infos.csv'), index=False)
-        import csv
+        
+        # export information for rois e.g. from which image they were extracted
         with open(self.export_folder.joinpath('rois_infos.csv'), 'w', encoding='UTF8', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(name_dict)
 
     def _on_select_file(self, current_item, previous_item):
-        
+        """Update the viewer with the selected file and its corresponding
+        annotations and rois."""
+
+        # when switching from an open file, save the annatations of the previous file
         if previous_item is not None:
-            self._save_annotations(filename=previous_item.text())
+            self.save_annotations(filename=previous_item.text())
         
+        # open file and add annotations and roi layers
         self.open_file()
         self._add_annotation_layer()
         self._add_roi_layer()
 
+        # create channle choices if open lead to multiple layers opening
         self.sel_channel.clear()
         for ch in self.viewer.layers:
             if (ch.name != 'annotations') and (ch.name != 'rois'):
                 self.sel_channel.addItem(ch.name)
         
-        #if current_item.text() in self.params.file_paths:
-        #    file_index = self.params.file_paths.index(current_item.text())
+        # if channel selection exists in params, select it
         if current_item.text() in self.params.channels.keys():
             self.sel_channel.setCurrentItem(self.sel_channel.findItems(self.params.channels[current_item.text()], Qt.MatchExactly)[0])
         else:
             self.sel_channel.setCurrentRow(0)
         
+        # add annoations if any exist
         if self._create_annotation_filename_current().exists():
             self.viewer.layers['annotations'].data = imread(self._create_annotation_filename_current())
-        #if self._create_annotation_filename_current(extension='_rois.csv').exists():
-        #   rois = pd.read_csv(self._create_annotation_filename_current(extension='_rois.csv'))
-        #   data = [x.reshape((4,2)) for x in rois.to_numpy()]
-        #   self.viewer.layers['rois'].data = data
+        
+        # add rois if any exist
         if current_item.text() in self.params.rois.keys():
             rois = self.params.rois[current_item.text()]
             rois = [np.array(x).reshape(4,self.ndim) for x in rois]
             self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
-
 
 class VHGroup():
     """Group box with specific layout
@@ -403,6 +432,8 @@ class VHGroup():
         self.gbox.setLayout(self.glayout)
 
 def scroll_label(default_text = 'default text'):
+    """Create scrollabel label"""
+
     mylabel = QLabel()
     mylabel.setText('No selection.')
     myscroll = QScrollArea()
@@ -413,5 +444,5 @@ def scroll_label(default_text = 'default text'):
 
 @napari_hook_implementation
 def napari_experimental_provide_dock_widget():
-    # you can return either a single widget, or a sequence of widgets
+
     return [ProjectWidget]

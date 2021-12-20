@@ -1,22 +1,12 @@
-"""
-This module is an example of a barebones QWidget plugin for napari
-
-It implements the ``napari_experimental_provide_dock_widget`` hook specification.
-see: https://napari.org/docs/dev/plugins/hook_specifications.html
-
-Replace code below according to your needs.
-"""
 from pathlib import Path
-from PyQt5.QtWidgets import QSpinBox
 import numpy as np
-import pandas as pd
 from skimage.io import imsave, imread
 import yaml
 
 from napari_plugin_engine import napari_hook_implementation
 from qtpy.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout,
 QGroupBox, QGridLayout, QListWidget, QPushButton, QFileDialog,
-QTabWidget, QLabel, QLineEdit, QScrollArea, QCheckBox)
+QTabWidget, QLabel, QLineEdit, QScrollArea, QCheckBox, QSpinBox)
 from qtpy.QtCore import Qt
 from .folder_list_widget import FolderList
 from .parameters import Param
@@ -61,6 +51,8 @@ class ProjectWidget(QWidget):
         self._project_layout.addWidget(files_vgroup.gbox)
         self.file_list = FolderList(napari_viewer)
         files_vgroup.glayout.addWidget(self.file_list, 0, 0, 1, 2)
+        self.btn_remove_file = QPushButton('Remove selected file')
+        files_vgroup.glayout.addWidget(self.btn_remove_file, 1, 0, 1, 2)
 
         # Keep track of the channel selection for annotations
         channel_group = VHGroup('Layer to annotate', orientation='V')
@@ -132,9 +124,11 @@ class ProjectWidget(QWidget):
         self.ndim = None
 
     def _add_connections(self):
-        self.file_list.model().rowsInserted.connect(self.update_params)
+        self.file_list.model().rowsInserted.connect(self._update_files_params)
+        #self.file_list.model().rowsRemoved.connect(self._update_files_params)
 
         self.file_list.currentItemChanged.connect(self._on_select_file)
+        self.btn_remove_file.clicked.connect(self._on_remove_file)
         self.sel_channel.currentItemChanged.connect(self.update_channels_param)
         self.check_fixed_roi_size.stateChanged.connect(self._on_fixed_roi_size)
         self.btn_add_roi.clicked.connect(self._on_click_add_roi_fixed)
@@ -160,6 +154,20 @@ class ProjectWidget(QWidget):
         else:
             self.ndim = self.viewer.layers[0].data.ndim
 
+    def _on_remove_file(self):
+        """Remove selected file and accompanying rois and annotations"""
+
+        file_index = self._get_current_file()
+        self.file_list.takeItem(self.file_list.currentRow())
+        self._update_files_params()
+        self.params.channels.pop(file_index)
+        self.params.rois.pop(file_index)
+        self.params.save_parameters()
+        annotation_file = Path(self._create_annotation_filename_current(file_index))
+        if annotation_file.exists():
+            annotation_file.unlink()
+
+
     def _on_click_select_export_folder(self):
         """Interactively select folder to analyze"""
 
@@ -167,14 +175,14 @@ class ProjectWidget(QWidget):
         self.display_export_folder.setText(self.export_folder.as_posix())
 
 
-    def update_params(self):
+    def _update_files_params(self):
         self.params.file_paths = [self.file_list.item(i).text() for i in range(self.file_list.count())]
 
     def update_channels_param(self):
 
         if self.sel_channel.currentItem() is not None:
-            #self.params.channels[self.file_list.currentItem().text()] = self.sel_channel.currentItem().text()
-            self.params.channels[self._get_current_param_file_index()] = self.sel_channel.currentItem().text()
+            self.params.channels[self._get_current_file()] = self.sel_channel.currentItem().text()
+            #self.params.channels[self._get_current_param_file_index()] = self.sel_channel.currentItem().text()
 
     def _on_fixed_roi_size(self):
         if self.check_fixed_roi_size.isChecked():
@@ -185,7 +193,7 @@ class ProjectWidget(QWidget):
             self.btn_add_roi.setVisible(False)
             
     def save_roi_to_csv(self, event):
-        
+        """Unusued roi export function to csv file"""
         if len(self.viewer.layers['rois'].data) > 0:
             rois = pd.DataFrame([x.flatten() for x in self.viewer.layers['rois'].data])
             rois.to_csv(self._create_annotation_filename_current(extension='_rois.csv'), index=False)
@@ -212,14 +220,19 @@ class ProjectWidget(QWidget):
         rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
         rois = [[x.item() for x in y] for y in rois]
         
-        #self.params.rois[self.file_list.currentItem().text()] = rois
-        self.params.rois[self._get_current_param_file_index()] = rois
+        #self.params.rois[self._get_current_param_file_index()] = rois
+        self.params.rois[self._get_current_file()] = rois
         self.params.save_parameters()
 
     def _get_current_param_file_index(self):
         """Get the index of the current file in the list of files."""
 
         file_index = self.params.file_paths.index(self.file_list.currentItem().text())
+        return file_index
+
+    def _get_current_file(self):
+        
+        file_index = self.file_list.currentItem().text()
         return file_index
 
     def _on_click_select_project(self):
@@ -258,7 +271,7 @@ class ProjectWidget(QWidget):
         else:
             filename = Path(filename).stem
         complete_name = self.annotation_path.joinpath(filename + extension)
-        #print(complete_name)
+
         return complete_name
 
     def _load_project(self, event):
@@ -300,7 +313,7 @@ class ProjectWidget(QWidget):
             for j in range(len(self.viewer.layers['rois'].data)):
                 limits = self.viewer.layers['rois'].data[j].astype(int)
                 annotations_roi = self.viewer.layers['annotations'].data.copy()
-                channel = self.params.channels[self._get_current_param_file_index()]
+                channel = self.params.channels[self._get_current_file()]
                 image_roi = self.viewer.layers[channel].data.copy()
                 
                 for n in range(self.ndim-2):
@@ -347,10 +360,10 @@ class ProjectWidget(QWidget):
             if (ch.name != 'annotations') and (ch.name != 'rois'):
                 self.sel_channel.addItem(ch.name)
         
-        if current_item.text() in self.params.file_paths:
-            file_index = self.params.file_paths.index(current_item.text())
-        if file_index in self.params.channels.keys():
-            self.sel_channel.setCurrentItem(self.sel_channel.findItems(self.params.channels[file_index], Qt.MatchExactly)[0])
+        #if current_item.text() in self.params.file_paths:
+        #    file_index = self.params.file_paths.index(current_item.text())
+        if current_item.text() in self.params.channels.keys():
+            self.sel_channel.setCurrentItem(self.sel_channel.findItems(self.params.channels[current_item.text()], Qt.MatchExactly)[0])
         else:
             self.sel_channel.setCurrentRow(0)
         
@@ -360,8 +373,8 @@ class ProjectWidget(QWidget):
         #   rois = pd.read_csv(self._create_annotation_filename_current(extension='_rois.csv'))
         #   data = [x.reshape((4,2)) for x in rois.to_numpy()]
         #   self.viewer.layers['rois'].data = data
-        if file_index in self.params.rois.keys():
-            rois = self.params.rois[file_index]
+        if current_item.text() in self.params.rois.keys():
+            rois = self.params.rois[current_item.text()]
             rois = [np.array(x).reshape(4,self.ndim) for x in rois]
             self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
 

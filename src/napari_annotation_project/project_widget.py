@@ -63,7 +63,7 @@ class ProjectWidget(QWidget):
         files_vgroup.glayout.addWidget(self.file_list, 0, 0, 1, 2)
 
         # Keep track of the channel selection for annotations
-        channel_group = VHGroup('Channel to annotate', orientation='V')
+        channel_group = VHGroup('Layer to annotate', orientation='V')
         self._project_layout.addWidget(channel_group.gbox)
         self.sel_channel = QListWidget(visible=True)
         channel_group.glayout.addWidget(self.sel_channel)
@@ -129,6 +129,7 @@ class ProjectWidget(QWidget):
         self.annotation_path = None
         self.params = Param()
         self.export_folder = None
+        self.ndim = None
 
     def _add_connections(self):
         self.file_list.model().rowsInserted.connect(self.update_params)
@@ -152,6 +153,12 @@ class ProjectWidget(QWidget):
         if 'rois' in [x.name for x in self.viewer.layers]:
             self.viewer.layers['rois'].events.set_data.connect(self.update_roi_param)
         self.viewer.open(Path(image_name))
+        if self.ndim is not None:
+            newdim = self.viewer.layers[0].data.ndim
+            if newdim != self.ndim:
+                raise Exception(f"Image dimension changed. Only ndim={self.ndim} accepted.")
+        else:
+            self.ndim = self.viewer.layers[0].data.ndim
 
     def _on_click_select_export_folder(self):
         """Interactively select folder to analyze"""
@@ -192,12 +199,14 @@ class ProjectWidget(QWidget):
     
     def _on_click_add_roi_fixed(self):
         
-        new_roi = np.array([
+        current_dim_pos = self.viewer.dims.current_step
+        new_roi = np.array(current_dim_pos)*np.ones((4, self.ndim))
+        new_roi[:,-2::] = np.array([
             [0, 0],
             [0, self.roi_size.value()],
             [self.roi_size.value(), self.roi_size.value()],
             [self.roi_size.value(),0]])
-        self.viewer.layers['rois'].data = self.viewer.layers['rois'].data + [new_roi]
+        self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r', edge_width=10)
 
     def update_roi_param(self, event):
         rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
@@ -229,7 +238,10 @@ class ProjectWidget(QWidget):
             )
 
     def _add_roi_layer(self):
-        self.roi_layer = self.viewer.add_shapes(name='rois', edge_color='red', face_color=[0,0,0,0])
+        
+        self.roi_layer = self.viewer.add_shapes(
+            ndim = self.viewer.layers[0].data.ndim,
+            name='rois', edge_color='red', face_color=[0,0,0,0], edge_width=10)
         
         # synchronize roi coordinates with those saved in the params
         self.viewer.layers['rois'].events.set_data.connect(self.update_roi_param)
@@ -280,32 +292,51 @@ class ProjectWidget(QWidget):
             labels_path.mkdir()
         
         image_counter = 0
-        name_dict = {'file_name': [], 'image_index': [], 'roi_index': []}
+        #name_dict = ['file_name': [], 'image_index': [], 'roi_index': []]
+        fieldnames = ['file_name', 'image_index', 'roi_index']
+        name_dict = []
         for i in range(self.file_list.count()):
             self.file_list.setCurrentRow(i)
             for j in range(len(self.viewer.layers['rois'].data)):
                 limits = self.viewer.layers['rois'].data[j].astype(int)
-                annotations_roi = self.viewer.layers['annotations'].data[
-                    limits[0,0]:limits[2,0],
-                    limits[0,1]:limits[1,1]
-                ]
+                annotations_roi = self.viewer.layers['annotations'].data.copy()
                 channel = self.params.channels[self._get_current_param_file_index()]
-                image_roi = self.viewer.layers[channel].data[
-                    limits[0,0]:limits[2,0],
-                    limits[0,1]:limits[1,1]
+                image_roi = self.viewer.layers[channel].data.copy()
+                
+                for n in range(self.ndim-2):
+                    annotations_roi = annotations_roi[limits[0,n]]
+                    image_roi = image_roi[limits[0,n]]
+
+                annotations_roi = annotations_roi[
+                    limits[0,-2]:limits[2,-2],
+                    limits[0,-1]:limits[1,-1]
                 ]
-                imsave(labels_path.joinpath(f'{self._source_name.text()}{image_counter}.tif'), annotations_roi, check_contrast=False)
-                imsave(images_path.joinpath(f'{self._target_name.text()}{image_counter}.tif'), image_roi, check_contrast=False)
+                
+                image_roi = image_roi[
+                    limits[0,-2]:limits[2,-2],
+                    limits[0,-1]:limits[1,-1]
+                ]
+
+                imsave(images_path.joinpath(f'{self._source_name.text()}{image_counter}.tif'), image_roi, check_contrast=False)
+                imsave(labels_path.joinpath(f'{self._target_name.text()}{image_counter}.tif'), annotations_roi, check_contrast=False)
                 image_counter += 1
-                name_dict['filename'].append(self.file_list.currentItem().text())
-                name_dict['image_index'].append(image_counter)
-                name_dict['roi_index'].append(j)
-            #shutil.rmtree(self.project_path.joinpath('images'))
+                temp_dict = {'file_name': self.file_list.currentItem().text(), 'image_index': image_counter, 'roi_index': j}
+                #name_dict['file_name'].append(self.file_list.currentItem().text())
+                #name_dict['image_index'].append(image_counter)
+                #name_dict['roi_index'].append(j)
+                name_dict.append(temp_dict)
+        #name_dict_pd = pd.DataFrame(name_dict)
+        #name_dict_pd.to_csv(self.export_folder.joinpath('rois_infos.csv'), index=False)
+        import csv
+        with open(self.export_folder.joinpath('rois_infos.csv'), 'w', encoding='UTF8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(name_dict)
 
     def _on_select_file(self, current_item, previous_item):
         
         if previous_item is not None:
-            self._save_annotations(previous_item.text())
+            self._save_annotations(filename=previous_item.text())
         
         self.open_file()
         self._add_annotation_layer()
@@ -313,7 +344,8 @@ class ProjectWidget(QWidget):
 
         self.sel_channel.clear()
         for ch in self.viewer.layers:
-            self.sel_channel.addItem(ch.name)
+            if (ch.name != 'annotations') and (ch.name != 'rois'):
+                self.sel_channel.addItem(ch.name)
         
         if current_item.text() in self.params.file_paths:
             file_index = self.params.file_paths.index(current_item.text())
@@ -324,14 +356,14 @@ class ProjectWidget(QWidget):
         
         if self._create_annotation_filename_current().exists():
             self.viewer.layers['annotations'].data = imread(self._create_annotation_filename_current())
-        '''if self._create_annotation_filename_current(extension='_rois.csv').exists():
-            rois = pd.read_csv(self._create_annotation_filename_current(extension='_rois.csv'))
-            data = [x.reshape((4,2)) for x in rois.to_numpy()]
-            self.viewer.layers['rois'].data = data'''
+        #if self._create_annotation_filename_current(extension='_rois.csv').exists():
+        #   rois = pd.read_csv(self._create_annotation_filename_current(extension='_rois.csv'))
+        #   data = [x.reshape((4,2)) for x in rois.to_numpy()]
+        #   self.viewer.layers['rois'].data = data
         if file_index in self.params.rois.keys():
             rois = self.params.rois[file_index]
-            rois = [np.array(x).reshape(4,2) for x in rois]
-            self.viewer.layers['rois'].data = rois
+            rois = [np.array(x).reshape(4,self.ndim) for x in rois]
+            self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
 
 
 class VHGroup():

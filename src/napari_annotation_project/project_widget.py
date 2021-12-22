@@ -11,6 +11,7 @@ QTabWidget, QLabel, QLineEdit, QScrollArea, QCheckBox, QSpinBox)
 from qtpy.QtCore import Qt
 from .folder_list_widget import FolderList
 from .parameters import Param
+from . import project as pr
 
 
 class ProjectWidget(QWidget):
@@ -119,14 +120,12 @@ class ProjectWidget(QWidget):
 
         self._add_connections()
 
-        self.annotation_path = None
-        self.params = Param()
         self.export_folder = None
         self.ndim = None
 
     def _add_connections(self):
         
-        self.file_list.model().rowsInserted.connect(self._update_files_params)
+        self.file_list.model().rowsInserted.connect(self._update_params_on_files_change)
         self.file_list.currentItemChanged.connect(self._on_select_file)
         self.btn_remove_file.clicked.connect(self._on_remove_file)
         self.sel_channel.currentItemChanged.connect(self._update_channels_param)
@@ -134,7 +133,7 @@ class ProjectWidget(QWidget):
         self.btn_add_roi.clicked.connect(self._on_click_add_roi_fixed)
         self.btn_project_folder.clicked.connect(self._on_click_select_project)
         self.btn_save_annotation.clicked.connect(self.save_annotations)
-        self.btn_load_project.clicked.connect(self._load_project)
+        self.btn_load_project.clicked.connect(self.load_project)
         self.btn_export_data.clicked.connect(self._export_data)
         self.btn_export_folder.clicked.connect(self._on_click_select_export_folder)
 
@@ -163,7 +162,7 @@ class ProjectWidget(QWidget):
 
         file_index = self._get_current_file()
         self.file_list.takeItem(self.file_list.currentRow())
-        self._update_files_params()
+        self._update_params_on_files_change()
         self.params.channels.pop(file_index)
         self.params.rois.pop(file_index)
         self.params.save_parameters()
@@ -179,14 +178,33 @@ class ProjectWidget(QWidget):
         self.display_export_folder.setText(self.export_folder.as_posix())
 
 
-    def _update_files_params(self):
+    def _update_params_on_files_change(self):
 
-        self.params.file_paths = [self.file_list.item(i).text() for i in range(self.file_list.count())]
+        self.params.file_paths = []
+        for i in range(self.file_list.count()):
+            if self.file_list.item(i).text() not in self.params.file_paths:
+                self.params.file_paths.append(self.file_list.item(i).text())
+        for f in self.params.file_paths:
+            if f not in self.params.channels.keys():
+                self.params.channels[f] = None
+            if f not in self.params.rois.keys():
+                self.params.rois[f] = []
+        self.params.save_parameters()
 
     def _update_channels_param(self):
 
         if self.sel_channel.currentItem() is not None:
             self.params.channels[self._get_current_file()] = self.sel_channel.currentItem().text()
+            self.params.save_parameters()
+
+    def _update_roi_param(self, event):
+        """Live update rois in the params object and the saved parameters file"""
+        
+        rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
+        rois = [[x.item() for x in y] for y in rois]
+        
+        self.params.rois[self._get_current_file()] = rois
+        self.params.save_parameters()
 
     def _on_fixed_roi_size(self):
         """Display roi options when fixed roi size is selected"""
@@ -226,15 +244,6 @@ class ProjectWidget(QWidget):
             [self.roi_size.value(),0]])
         self.viewer.layers['rois'].add_rectangles(new_roi, edge_color='r', edge_width=10)
 
-    def _update_roi_param(self, event):
-        """Live update rois in the params object and the saved parameters file"""
-        
-        rois = [list(x.flatten()) for x in self.viewer.layers['rois'].data]
-        rois = [[x.item() for x in y] for y in rois]
-        
-        self.params.rois[self._get_current_file()] = rois
-        self.params.save_parameters()
-
     def _get_current_param_file_index(self):
         """Get the index of the current file in the list of files."""
 
@@ -250,11 +259,8 @@ class ProjectWidget(QWidget):
     def _on_click_select_project(self):
         """Select folder where to save rois and annotations."""
 
-        self.project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
-        if not self.project_path.joinpath('annotations').exists():
-            self.project_path.joinpath('annotations').mkdir()
-        self.annotation_path = self.project_path.joinpath('annotations')
-        self.params.project_path = self.project_path.as_posix()
+        project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        self.params = pr.create_project(project_path)
 
     def _add_annotation_layer(self):
 
@@ -291,28 +297,27 @@ class ProjectWidget(QWidget):
 
         """
 
-        if self.annotation_path is None:
+        if self.params.project_path.joinpath('annotations') is None:
             self._on_click_select_project()
         if filename is None:
             filename = Path(self.file_list.currentItem().text()).stem
         else:
             filename = Path(filename).stem
-        complete_name = self.annotation_path.joinpath(filename + extension)
+        complete_name = self.params.project_path.joinpath('annotations', filename + extension)
 
         return complete_name
 
-    def _load_project(self, event):
+    def load_project(self, event=None, project_path=None):
         """Load an existing project. The chosen folder needs to contain an
         appropriately formatted Parameters.yml file."""
 
-        self.params = Param()
-        self.project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        #self.params = Param()
+        if project_path is None:
+            project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        else:
+            project_path = Path(project_path)
 
-        with open(self.project_path.joinpath('Parameters.yml')) as file:
-            documents = yaml.full_load(file)
-        for k in documents.keys():
-            setattr(self.params, k, documents[k])
-        self.annotation_path = self.project_path.joinpath('annotations')
+        self.params = pr.load_project(project_path)
         for f in self.params.file_paths:
             self.file_list.addItem(f)
 
@@ -321,9 +326,8 @@ class ProjectWidget(QWidget):
 
         data = self.viewer.layers['annotations'].data
         imsave(self._create_annotation_filename_current(filename), data, compress=1, check_contrast=False)
-        self.params.save_parameters()
 
-    def _export_data(self, event):
+    def _export_data(self, event=None):
         """Export cropped data of the images and the annotations using the rois."""
 
         if self.export_folder is None:
@@ -393,7 +397,7 @@ class ProjectWidget(QWidget):
                 self.sel_channel.addItem(ch.name)
         
         # if channel selection exists in params, select it
-        if current_item.text() in self.params.channels.keys():
+        if self.params.channels[current_item.text()] is not None:
             self.sel_channel.setCurrentItem(self.sel_channel.findItems(self.params.channels[current_item.text()], Qt.MatchExactly)[0])
         else:
             self.sel_channel.setCurrentRow(0)
@@ -444,5 +448,4 @@ def scroll_label(default_text = 'default text'):
 
 @napari_hook_implementation
 def napari_experimental_provide_dock_widget():
-
-    return [ProjectWidget]
+    return (ProjectWidget, {'name': 'Project manager'})

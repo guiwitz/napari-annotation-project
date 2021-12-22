@@ -41,8 +41,10 @@ class Param:
     
         with open(save_path, "w") as file:
             dict_to_save = dataclasses.asdict(self)
-            if not isinstance(dict_to_save['project_path'], str):
-                dict_to_save['project_path'] = dict_to_save['project_path'].as_posix()
-            if not isinstance(dict_to_save['file_paths'][0], str):
-                dict_to_save['file_paths'] = [x.as_posix() for x in dict_to_save['file_paths']]
+            if dict_to_save['project_path'] is not None:
+                if not isinstance(dict_to_save['project_path'], str):
+                    dict_to_save['project_path'] = dict_to_save['project_path'].as_posix()
+            if dict_to_save['file_paths'] is not None:
+                if not isinstance(dict_to_save['file_paths'][0], str):
+                    dict_to_save['file_paths'] = [x.as_posix() for x in dict_to_save['file_paths']]
             yaml.dump(dict_to_save, file)

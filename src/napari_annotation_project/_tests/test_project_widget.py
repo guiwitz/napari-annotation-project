@@ -107,7 +107,7 @@ def test_project_load(project_widget):
     np.testing.assert_array_equal(project_widget.viewer.layers['rois'].data[0], expected_roi, 'Wrong roi')
     np.testing.assert_array_equal(project_widget.viewer.layers['annotations'].data, image_annotation2, 'Wrong annotation')
 
-'''def test_project_remove_file(project_widget):
+def test_project_remove_file(project_widget):
     
     project_path='src/napari_annotation_project/_tests/test_project/'
     project_widget.load_project(project_path=project_path)
@@ -117,4 +117,4 @@ def test_project_load(project_widget):
     project_widget.file_list.setCurrentRow(1)
     project_widget._on_remove_file()
     
-    assert project_widget.file_list.count() == 1, 'Second image not removed correctly'''
+    assert project_widget.file_list.count() == 1, 'Second image not removed correctly'

@@ -27,11 +27,12 @@ def test_fake():
 def test_project_widget(make_napari_viewer, napari_plugin_manager):
     napari_plugin_manager.register(napari_annotation_project, name='napari-annotation-project')
     viewer = make_napari_viewer()
-    _, widget = viewer.window.add_plugin_dock_widget(
+    num_dw = len(viewer.window._dock_widgets)
+    viewer.window.add_plugin_dock_widget(
         plugin_name='napari-annotation-project', widget_name='Project manager'
     )
     
-    assert isinstance(widget, napari_annotation_project.ProjectWidget)
+    assert len(viewer.window._dock_widgets) == num_dw + 1
 
 """
 @pytest.fixture

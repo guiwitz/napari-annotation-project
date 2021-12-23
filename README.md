@@ -7,42 +7,42 @@
 [![codecov](https://codecov.io/gh/guiwitz/napari-annotation-project/branch/main/graph/badge.svg)](https://codecov.io/gh/guiwitz/napari-annotation-project)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-annotation-project)](https://napari-hub.org/plugins/napari-annotation-project)
 
-A napari plugin to keep images and annotations as a re-loadable project
+This napari plugin allows you to create a project where you can import multiple images, including from different folders, annotate them with labels and define rois. The project is automatically saved and can easily be reopened later on. Images as well as annotations within rois can be exported as series of cropped images. One primary goal of this plugin is to simplify annotation workflows to generate training datasets for machine learning methods.
 
-----------------------------------
+## Usage
+To start a project, you can just drag and drop files in the file list area. This prompts for the selection of a project folder. After that, more files can be drag and dropped to be included in the project. **Files are not copied in the project**. The result of this is that projects cannot be moved after creation (an option to copy files might be added in the future). When selecting a file in the list, it is opened (using the default image reader or a reader plugin if installed) and two layers, one for adding rois, and one for adding annotations are added.
 
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
+### Adding rois
+After selecting the ```rois``` layer, you can add rectangular rois to the image. If you need square rois of a specific size (as often needed in DL training) you can select the ```Fixed roi size``` option and then use the ```Add roi``` button. **Note that currently only 2D rois are supported**. If you work with nD images, the roi is therefore added to the **current selected 2D plane**.
 
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
+### Adding annotations
+After selecting the ```annotations``` layer, you can add annotations to your image. There are no restrictions here and you can e.g. add as many labels as you need.
 
-and review the napari docs for plugin developers:
-https://napari.org/plugins/stable/index.html
--->
+### Info storage
+All relevant information on project location, project files and rois is stored in a yaml file ```Parameters.yml```. Annotations are stored as 2D tiff files in the ```annotations``` as files named after the original files. **Note that at the moment if multiple files have the same name, this will cause trouble**. This parameter file is used when re-loading an existing project.
+
+## Exporting rois
+Once you are satisfied with your annotations and rois, you can use the rois to export only the corresponing cropped rois of both the image and annotation layers. For this you can head to the ```Export``` tab. Here you can set the location of the export folder, set the names of the folders that will contain cropped images and cropped annotations, and finally set the prefix names for these two types of files. Files are exported as tif files. 
 
 ## Installation
 
-You can install `napari-annotation-project` via [pip]:
+
+You can install `napari-annotation-project` via [pip] (**note yet functional**):
 
     pip install napari-annotation-project
-
-
 
 To install latest development version :
 
     pip install git+https://github.com/guiwitz/napari-annotation-project.git
 
-
 ## Contributing
 
-Contributions are very welcome. Tests can be run with [tox], please ensure
-the coverage at least stays the same before you submit a pull request.
+Contributions are very welcome. Tests can be run with [tox].
 
 ## License
 
 Distributed under the terms of the [BSD-3] license,
-"napari-annotation-project" is free and open source software
+"napari-annotation-project" is free and open source software.
 
 ## Issues
 

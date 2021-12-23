@@ -47,7 +47,7 @@ class ProjectWidget(QWidget):
         self._export_layout = QVBoxLayout()
         self.export.setLayout(self._export_layout)
         self.tabs.addTab(self.export, 'Export')
-        """
+        
         # Create file list where to drag and drop files to add to the project
         files_vgroup = VHGroup('Files', orientation='G')
         self._project_layout.addWidget(files_vgroup.gbox)
@@ -55,7 +55,7 @@ class ProjectWidget(QWidget):
         files_vgroup.glayout.addWidget(self.file_list, 0, 0, 1, 2)
         self.btn_remove_file = QPushButton('Remove selected file')
         files_vgroup.glayout.addWidget(self.btn_remove_file, 1, 0, 1, 2)
-
+        """
         # Keep track of the channel selection for annotations
         channel_group = VHGroup('Layer to annotate', orientation='V')
         self._project_layout.addWidget(channel_group.gbox)

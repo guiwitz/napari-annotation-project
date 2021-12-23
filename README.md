@@ -12,6 +12,8 @@ This napari plugin allows you to create a project where you can import multiple 
 ## Usage
 To start a project, you can just drag and drop files in the file list area. This prompts for the selection of a project folder. After that, more files can be drag and dropped to be included in the project. **Files are not copied in the project**. The result of this is that projects cannot be moved after creation (an option to copy files might be added in the future). When selecting a file in the list, it is opened (using the default image reader or a reader plugin if installed) and two layers, one for adding rois, and one for adding annotations are added.
 
+https://user-images.githubusercontent.com/4622767/147265874-57dcd956-4d54-4c76-9129-c1fc2837e6a4.mp4
+
 ### Adding rois
 After selecting the ```rois``` layer, you can add rectangular rois to the image. If you need square rois of a specific size (as often needed in DL training) you can select the ```Fixed roi size``` option and then use the ```Add roi``` button. **Note that currently only 2D rois are supported**. If you work with nD images, the roi is therefore added to the **current selected 2D plane**.
 
@@ -21,8 +23,12 @@ After selecting the ```annotations``` layer, you can add annotations to your ima
 ### Info storage
 All relevant information on project location, project files and rois is stored in a yaml file ```Parameters.yml```. Annotations are stored as 2D tiff files in the ```annotations``` as files named after the original files. **Note that at the moment if multiple files have the same name, this will cause trouble**. This parameter file is used when re-loading an existing project.
 
+https://user-images.githubusercontent.com/4622767/147265984-adb6ee1f-9319-45c9-a9a4-735ade2a3905.mp4
+
 ## Exporting rois
 Once you are satisfied with your annotations and rois, you can use the rois to export only the corresponing cropped rois of both the image and annotation layers. For this you can head to the ```Export``` tab. Here you can set the location of the export folder, set the names of the folders that will contain cropped images and cropped annotations, and finally set the prefix names for these two types of files. Files are exported as tif files. 
+
+https://user-images.githubusercontent.com/4622767/147266002-9c4485c9-5bcc-4c64-9c92-6c06775e2711.mp4
 
 ## Installation
 

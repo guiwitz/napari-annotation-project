@@ -73,7 +73,7 @@ class ProjectWidget(QWidget):
         self._project_layout.addWidget(self.btn_add_roi)
 
         # Select a folder where to save the project
-        self.btn_project_folder = QPushButton("Select project folder")
+        self.btn_project_folder = QPushButton("Create project")
         self._project_layout.addWidget(self.btn_project_folder)
 
         # Save current annotations (this is also done automatically when switching to a new image)
@@ -122,10 +122,11 @@ class ProjectWidget(QWidget):
 
         self.export_folder = None
         self.ndim = None
+        self.params = None
 
     def _add_connections(self):
         
-        self.file_list.model().rowsInserted.connect(self._update_params_on_files_change)
+        self.file_list.model().rowsInserted.connect(self._on_add_file)
         self.file_list.currentItemChanged.connect(self._on_select_file)
         self.btn_remove_file.clicked.connect(self._on_remove_file)
         self.sel_channel.currentItemChanged.connect(self._update_channels_param)
@@ -133,22 +134,24 @@ class ProjectWidget(QWidget):
         self.btn_add_roi.clicked.connect(self._on_click_add_roi_fixed)
         self.btn_project_folder.clicked.connect(self._on_click_select_project)
         self.btn_save_annotation.clicked.connect(self.save_annotations)
-        self.btn_load_project.clicked.connect(self.load_project)
+        self.btn_load_project.clicked.connect(self._on_click_load_project)
         self.btn_export_data.clicked.connect(self._export_data)
         self.btn_export_folder.clicked.connect(self._on_click_select_export_folder)
 
     def open_file(self):
-        """Open file selected in list"""
-        image_name = self.file_list.currentItem().text()
+        """Open file selected in list. Returns True if file was opened."""
+        
         # clear existing layers. Suspend roi update while doing so, as 
         # roi layer suppresion would trigger a roi update and copy old rois to
         # the new file
-        if 'rois' in [x.name for x in self.viewer.layers]:
-            self.viewer.layers['rois'].events.set_data.disconnect(self._update_roi_param)
-        self.viewer.layers.clear()
-        if 'rois' in [x.name for x in self.viewer.layers]:
-            self.viewer.layers['rois'].events.set_data.connect(self._update_roi_param)
+        self.clear_layers()
+
+        # if file list is emtpy stop here
+        if self.file_list.currentItem() is None:
+            return False
+        
         # open image and make sure dimensions match previous images
+        image_name = self.file_list.currentItem().text()
         self.viewer.open(Path(image_name))
         if self.ndim is not None:
             newdim = self.viewer.layers[0].data.ndim
@@ -157,12 +160,31 @@ class ProjectWidget(QWidget):
         else:
             self.ndim = self.viewer.layers[0].data.ndim
 
+        return True
+
+    def clear_layers(self):
+        """Remove all layers from viewer."""
+        
+        # clear existing layers. Suspend roi update while doing so, as 
+        # roi layer suppresion would trigger a roi update and copy old rois to
+        # the new file
+        if 'rois' in [x.name for x in self.viewer.layers]:
+            self.viewer.layers['rois'].events.set_data.disconnect(self._update_roi_param)
+        self.viewer.layers.clear()
+
+    def _close_project(self, clear_files=True):
+        
+        self.viewer.layers.clear()
+        self.sel_channel.clear()
+        if clear_files:
+            self.file_list.clear()
+
     def _on_remove_file(self):
         """Remove selected file and accompanying rois and annotations"""
 
         file_index = self._get_current_file()
         self.file_list.takeItem(self.file_list.currentRow())
-        self._update_params_on_files_change()
+        self._update_params_file_list()
         self.params.channels.pop(file_index)
         self.params.rois.pop(file_index)
         self.params.save_parameters()
@@ -170,26 +192,29 @@ class ProjectWidget(QWidget):
         if annotation_file.exists():
             annotation_file.unlink()
 
+    def _on_add_file(self):
+        """Update params when adding or removing a file"""
 
-    def _on_click_select_export_folder(self):
-        """Interactively select folder where to save annotations and rois"""
-
-        self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Export folder")))
-        self.display_export_folder.setText(self.export_folder.as_posix())
-
-
-    def _update_params_on_files_change(self):
-
-        self.params.file_paths = []
-        for i in range(self.file_list.count()):
-            if self.file_list.item(i).text() not in self.params.file_paths:
-                self.params.file_paths.append(self.file_list.item(i).text())
+        if self.params is None:
+            self._on_click_select_project()
+        self._update_params_file_list()
         for f in self.params.file_paths:
             if f not in self.params.channels.keys():
                 self.params.channels[f] = None
             if f not in self.params.rois.keys():
                 self.params.rois[f] = []
         self.params.save_parameters()
+
+    def _update_params_file_list(self):
+        """Update params file list when adding or removing a file"""
+
+        self.params.file_paths = []
+        if self.file_list.count() == 0:
+            self.params.file_paths = None
+        else:
+            for i in range(self.file_list.count()):
+                if self.file_list.item(i).text() not in self.params.file_paths:
+                    self.params.file_paths.append(self.file_list.item(i).text())
 
     def _update_channels_param(self):
 
@@ -256,11 +281,23 @@ class ProjectWidget(QWidget):
         file_index = self.file_list.currentItem().text()
         return file_index
 
-    def _on_click_select_project(self):
+    def _on_click_select_project(self, event=None):
         """Select folder where to save rois and annotations."""
 
-        project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        # if triggered by click to create new project, clear files
+        # otherwise triggered by firs file drag and drop and files should not be cleared
+        clear_files = event is not None
+        self.save_annotations()
+        self._close_project(clear_files= clear_files)            
+
+        project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select folder to store project",options=QFileDialog.DontUseNativeDialog)))
         self.params = pr.create_project(project_path)
+
+    def _on_click_select_export_folder(self):
+        """Interactively select folder where to save annotations and rois"""
+
+        self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select folder for export",options=QFileDialog.DontUseNativeDialog)))
+        self.display_export_folder.setText(self.export_folder.as_posix())
 
     def _add_annotation_layer(self):
 
@@ -297,8 +334,8 @@ class ProjectWidget(QWidget):
 
         """
 
-        if self.params.project_path.joinpath('annotations') is None:
-            self._on_click_select_project()
+        #if self.params.project_path.joinpath('annotations') is None:
+        #    self._on_click_select_project()
         if filename is None:
             filename = Path(self.file_list.currentItem().text()).stem
         else:
@@ -307,13 +344,17 @@ class ProjectWidget(QWidget):
 
         return complete_name
 
-    def load_project(self, event=None, project_path=None):
+    def _on_click_load_project(self, event=None, project_path=None):
         """Load an existing project. The chosen folder needs to contain an
         appropriately formatted Parameters.yml file."""
 
+        # close existing project
+        self.save_annotations()
+        self._close_project()
+
         #self.params = Param()
         if project_path is None:
-            project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+            project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select a project folder to load",options=QFileDialog.DontUseNativeDialog)))
         else:
             project_path = Path(project_path)
 
@@ -324,8 +365,9 @@ class ProjectWidget(QWidget):
     def save_annotations(self, event=None, filename=None):
         """Save annotations in default location or in the specified location."""
 
-        data = self.viewer.layers['annotations'].data
-        imsave(self._create_annotation_filename_current(filename), data, compress=1, check_contrast=False)
+        if 'annotations' in [x.name for x in self.viewer.layers]:    
+            data = self.viewer.layers['annotations'].data
+            imsave(self._create_annotation_filename_current(filename), data, compress=1, check_contrast=False)
 
     def _export_data(self, event=None):
         """Export cropped data of the images and the annotations using the rois."""
@@ -383,15 +425,21 @@ class ProjectWidget(QWidget):
 
         # when switching from an open file, save the annatations of the previous file
         if previous_item is not None:
+            print(f'previous_item.text() = {previous_item.text()}')
             self.save_annotations(filename=previous_item.text())
         
-        # open file and add annotations and roi layers
-        self.open_file()
+        self.sel_channel.clear()
+
+        # open file and add annotations and roi layers. If no image could 
+        # be opened because file list is empty, do nothing.
+        success = self.open_file()
+        if not success:
+            return
+
         self._add_annotation_layer()
         self._add_roi_layer()
 
-        # create channle choices if open lead to multiple layers opening
-        self.sel_channel.clear()
+        # create channel choices if open lead to multiple layers opening
         for ch in self.viewer.layers:
             if (ch.name != 'annotations') and (ch.name != 'rois'):
                 self.sel_channel.addItem(ch.name)

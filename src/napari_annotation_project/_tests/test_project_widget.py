@@ -53,7 +53,7 @@ def test_project_widget_add_file(project_widget):
 
 def test_project_add_roi(project_widget):
     
-    project_widget.load_project(project_path='src/napari_annotation_project/_tests/test_project/')
+    project_widget._on_click_load_project(project_path='src/napari_annotation_project/_tests/test_project/')
     project_widget.file_list.setCurrentRow(0)
     project_widget.roi_size.setValue(10)
     project_widget._on_click_add_roi_fixed()
@@ -69,7 +69,7 @@ def test_project_add_roi(project_widget):
 def test_project_add_save_annotation(project_widget):
     
     project_path='src/napari_annotation_project/_tests/test_project/'
-    project_widget.load_project(project_path=project_path)
+    project_widget._on_click_load_project(project_path=project_path)
     project_widget.file_list.setCurrentRow(0)
     project_widget.viewer.layers['annotations'].data = image_annotation
     project_widget.file_list.setCurrentRow(1)
@@ -82,7 +82,7 @@ def test_project_add_save_annotation(project_widget):
 def test_project_export(project_widget):
     
     project_path=Path('src/napari_annotation_project/_tests/test_project/')
-    project_widget.load_project(project_path=project_path)
+    project_widget._on_click_load_project(project_path=project_path)
     project_widget.file_list.setCurrentRow(0)
 
     project_widget.export_folder = project_path.joinpath('export')
@@ -101,7 +101,7 @@ def test_project_export(project_widget):
 
 def test_project_load(project_widget):
         
-    project_widget.load_project(project_path='src/napari_annotation_project/_tests/test_project/')
+    project_widget._on_click_load_project(project_path='src/napari_annotation_project/_tests/test_project/')
     assert project_widget.file_list.count() == 2, 'File not added'
 
     project_widget.file_list.setCurrentRow(1)
@@ -113,7 +113,7 @@ def test_project_load(project_widget):
 def test_project_remove_file(project_widget):
     
     project_path='src/napari_annotation_project/_tests/test_project/'
-    project_widget.load_project(project_path=project_path)
+    project_widget._on_click_load_project(project_path=project_path)
     
     assert project_widget.file_list.count() == 2, 'Wrong number of files'
     

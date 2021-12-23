@@ -9,6 +9,9 @@ demoimage = np.random.randint(0,255, (30,30), dtype=np.uint8)
 demoimage2 = np.random.randint(0,255, (30,30), dtype=np.uint8)
 image_annotation = np.random.randint(1,3, (30,30), dtype=np.uint8)
 image_annotation2 = np.random.randint(1,3, (30,30), dtype=np.uint8)
+data_path = Path('src/napari_annotation_project/_tests/test_data')
+if not data_path.exists():
+    data_path.mkdir()
 skimage.io.imsave('src/napari_annotation_project/_tests/test_data/demo_data.tif', demoimage)
 skimage.io.imsave('src/napari_annotation_project/_tests/test_data/demo_data2.tif', demoimage2)
 

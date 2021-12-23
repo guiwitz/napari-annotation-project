@@ -55,7 +55,7 @@ class ProjectWidget(QWidget):
         files_vgroup.glayout.addWidget(self.file_list, 0, 0, 1, 2)
         self.btn_remove_file = QPushButton('Remove selected file')
         files_vgroup.glayout.addWidget(self.btn_remove_file, 1, 0, 1, 2)
-        """
+        
         # Keep track of the channel selection for annotations
         channel_group = VHGroup('Layer to annotate', orientation='V')
         self._project_layout.addWidget(channel_group.gbox)
@@ -89,7 +89,7 @@ class ProjectWidget(QWidget):
         self.names_group.gbox.setMaximumHeight(250)
 
         self._export_layout.addWidget(self.names_group.gbox)
-
+        """
         self.btn_export_folder = QPushButton("Export folder")
         self.display_export_folder, self.scroll_export_folder = scroll_label('No selection.')
         self.names_group.glayout.addWidget(self.scroll_export_folder, 0, 0)

@@ -426,7 +426,6 @@ class ProjectWidget(QWidget):
 
         # when switching from an open file, save the annatations of the previous file
         if previous_item is not None:
-            print(f'previous_item.text() = {previous_item.text()}')
             self.save_annotations(filename=previous_item.text())
         
         self.sel_channel.clear()

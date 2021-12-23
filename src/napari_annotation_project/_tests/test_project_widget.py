@@ -24,7 +24,7 @@ if proj_path.exists():
 def test_fake():
     assert True
 
-"""@pytest.fixture
+@pytest.fixture
 def project_widget(make_napari_viewer, napari_plugin_manager):
     napari_plugin_manager.register(napari_annotation_project, name='napari-annotation-project')
     viewer = make_napari_viewer()
@@ -36,7 +36,7 @@ def project_widget(make_napari_viewer, napari_plugin_manager):
 def test_project_widget(project_widget):
     
     assert isinstance(project_widget, napari_annotation_project.ProjectWidget)
-
+"""
 def test_project_widget_add_file(project_widget):
     
     proj_path = Path('src/napari_annotation_project/_tests/test_project')

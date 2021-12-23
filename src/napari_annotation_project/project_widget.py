@@ -244,6 +244,7 @@ class ProjectWidget(QWidget):
     def save_roi_to_csv(self, event):
         """Unused roi export function to csv file via pandas"""
 
+        import pandas as pd
         if len(self.viewer.layers['rois'].data) > 0:
             rois = pd.DataFrame([x.flatten() for x in self.viewer.layers['rois'].data])
             rois.to_csv(self._create_annotation_filename_current(extension='_rois.csv'), index=False)

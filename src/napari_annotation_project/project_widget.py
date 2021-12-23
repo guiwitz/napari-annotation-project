@@ -59,9 +59,9 @@ class ProjectWidget(QWidget):
         # Keep track of the channel selection for annotations
         channel_group = VHGroup('Layer to annotate', orientation='V')
         self._project_layout.addWidget(channel_group.gbox)
-        """self.sel_channel = QListWidget(visible=True)
+        self.sel_channel = QListWidget(visible=True)
         channel_group.glayout.addWidget(self.sel_channel)
-        
+        """
         # Create rois of fixed size
         self.check_fixed_roi_size = QCheckBox('Fixed ROI size')
         self._project_layout.addWidget(self.check_fixed_roi_size)

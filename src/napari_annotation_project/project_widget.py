@@ -36,7 +36,7 @@ class ProjectWidget(QWidget):
         self.tabs = QTabWidget()
         self.main_layout.addWidget(self.tabs)
 
-        """# project tab
+        # project tab
         self.project = QWidget()
         self._project_layout = QVBoxLayout()
         self.project.setLayout(self._project_layout)
@@ -47,7 +47,7 @@ class ProjectWidget(QWidget):
         self._export_layout = QVBoxLayout()
         self.export.setLayout(self._export_layout)
         self.tabs.addTab(self.export, 'Export')
-
+        """
         # Create file list where to drag and drop files to add to the project
         files_vgroup = VHGroup('Files', orientation='G')
         self._project_layout.addWidget(files_vgroup.gbox)

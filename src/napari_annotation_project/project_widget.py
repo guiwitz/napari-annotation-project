@@ -61,7 +61,7 @@ class ProjectWidget(QWidget):
         self._project_layout.addWidget(channel_group.gbox)
         self.sel_channel = QListWidget(visible=True)
         channel_group.glayout.addWidget(self.sel_channel)
-
+        """
         # Create rois of fixed size
         self.check_fixed_roi_size = QCheckBox('Fixed ROI size')
         self._project_layout.addWidget(self.check_fixed_roi_size)
@@ -71,7 +71,7 @@ class ProjectWidget(QWidget):
         self._project_layout.addWidget(self.roi_size)
         self.btn_add_roi = QPushButton('Add ROI', visible=False)
         self._project_layout.addWidget(self.btn_add_roi)
-        """
+        
         # Select a folder where to save the project
         self.btn_project_folder = QPushButton("Create project")
         self._project_layout.addWidget(self.btn_project_folder)

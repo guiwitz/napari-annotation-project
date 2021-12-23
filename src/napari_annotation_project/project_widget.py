@@ -36,7 +36,7 @@ class ProjectWidget(QWidget):
         self.tabs = QTabWidget()
         self.main_layout.addWidget(self.tabs)
 
-        # project tab
+        """# project tab
         self.project = QWidget()
         self._project_layout = QVBoxLayout()
         self.project.setLayout(self._project_layout)
@@ -122,7 +122,7 @@ class ProjectWidget(QWidget):
 
         self.export_folder = None
         self.ndim = None
-        self.params = None
+        self.params = None"""
 
     def _add_connections(self):
         

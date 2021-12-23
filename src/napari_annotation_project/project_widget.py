@@ -71,7 +71,7 @@ class ProjectWidget(QWidget):
         self._project_layout.addWidget(self.roi_size)
         self.btn_add_roi = QPushButton('Add ROI', visible=False)
         self._project_layout.addWidget(self.btn_add_roi)
-
+        """
         # Select a folder where to save the project
         self.btn_project_folder = QPushButton("Create project")
         self._project_layout.addWidget(self.btn_project_folder)
@@ -89,7 +89,7 @@ class ProjectWidget(QWidget):
         self.names_group.gbox.setMaximumHeight(250)
 
         self._export_layout.addWidget(self.names_group.gbox)
-        """
+        
         self.btn_export_folder = QPushButton("Export folder")
         self.display_export_folder, self.scroll_export_folder = scroll_label('No selection.')
         self.names_group.glayout.addWidget(self.scroll_export_folder, 0, 0)

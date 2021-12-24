@@ -61,7 +61,7 @@ class ProjectWidget(QWidget):
         self._project_layout.addWidget(channel_group.gbox)
         self.sel_channel = QListWidget()
         channel_group.glayout.addWidget(self.sel_channel)
-        """
+        
         # Create rois of fixed size
         self.check_fixed_roi_size = QCheckBox('Fixed ROI size')
         self._project_layout.addWidget(self.check_fixed_roi_size)
@@ -122,7 +122,7 @@ class ProjectWidget(QWidget):
 
         self.export_folder = None
         self.ndim = None
-        self.params = None"""
+        self.params = None
 
     def _add_connections(self):
         

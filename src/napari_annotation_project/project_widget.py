@@ -59,7 +59,7 @@ class ProjectWidget(QWidget):
         # Keep track of the channel selection for annotations
         channel_group = VHGroup('Layer to annotate', orientation='V')
         self._project_layout.addWidget(channel_group.gbox)
-        self.sel_channel = QPushButton('Remove selected file')#QListWidget(visible=True)
+        self.sel_channel = QListWidget()
         channel_group.glayout.addWidget(self.sel_channel)
         """
         # Create rois of fixed size

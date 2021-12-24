@@ -21,7 +21,7 @@ proj_path = Path('src/napari_annotation_project/_tests/test_project')
 if proj_path.exists():
     shutil.rmtree(proj_path)
 
-def test_fake():
+'''def test_fake():
     assert True
 
 def test_project_widget(make_napari_viewer, napari_plugin_manager):
@@ -32,9 +32,9 @@ def test_project_widget(make_napari_viewer, napari_plugin_manager):
         plugin_name='napari-annotation-project', widget_name='Project manager'
     )
     
-    assert len(viewer.window._dock_widgets) == num_dw + 1
+    assert len(viewer.window._dock_widgets) == num_dw + 1'''
 
-"""
+
 @pytest.fixture
 def project_widget(make_napari_viewer, napari_plugin_manager):
     napari_plugin_manager.register(napari_annotation_project, name='napari-annotation-project')
@@ -135,4 +135,3 @@ def test_project_remove_file(project_widget):
     project_widget._on_remove_file()
     
     assert project_widget.file_list.count() == 1, 'Second image not removed correctly'
-"""

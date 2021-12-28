@@ -19,12 +19,15 @@ class Param:
         channel getting exported as source for each file
     rois: dict of arrays
         flat list of rois for each file
+    local_project: bool
+        if True, images are saved in local folder
     
     """
     project_path: str = None
     file_paths: list[str] = None
     channels: dict = field(default_factory=dict)
     rois: dict = field(default_factory=dict)
+    local_project: bool = False
 
     def save_parameters(self, alternate_path=None):
         """Save parameters as yml file.

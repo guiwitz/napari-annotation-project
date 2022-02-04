@@ -527,8 +527,3 @@ def scroll_label(default_text = 'default text'):
     myscroll.setWidgetResizable(True)
     myscroll.setWidget(mylabel)
     return mylabel, myscroll
-
-
-@napari_hook_implementation
-def napari_experimental_provide_dock_widget():
-    return (ProjectWidget, {'name': 'Project manager'})

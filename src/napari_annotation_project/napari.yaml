@@ -1,0 +1,10 @@
+name: napari-annotation-project
+display_name: AnnotProj
+contributions:
+  commands:
+    - id: napari-annotation-project.make_qwidget
+      python_name: napari_annotation_project.project_widget:ProjectWidget
+      title: Make ProjectWidget
+  widgets:
+    - command: napari-annotation-project.make_qwidget
+      display_name: ProjectWidget

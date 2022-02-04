@@ -43,7 +43,7 @@ def project_widget(make_napari_viewer, napari_plugin_manager):
     napari_plugin_manager.register(napari_annotation_project, name='napari-annotation-project')
     viewer = make_napari_viewer()
     _, widget = viewer.window.add_plugin_dock_widget(
-        plugin_name='napari-annotation-project', widget_name='Project manager'
+        plugin_name='napari-annotation-project', widget_name='ProjectWidget'
     )
     return widget
 

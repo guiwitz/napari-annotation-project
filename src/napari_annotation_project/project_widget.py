@@ -6,7 +6,6 @@ import numpy as np
 from skimage.io import imsave, imread
 import yaml
 
-from napari_plugin_engine import napari_hook_implementation
 from qtpy.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout,
 QGroupBox, QGridLayout, QListWidget, QPushButton, QFileDialog,
 QTabWidget, QLabel, QLineEdit, QScrollArea, QCheckBox, QSpinBox)

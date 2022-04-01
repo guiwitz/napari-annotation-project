@@ -1,10 +1,11 @@
 import csv
+import os
+import shutil
 from pathlib import Path
 import numpy as np
 from skimage.io import imsave, imread
 import yaml
 
-from napari_plugin_engine import napari_hook_implementation
 from qtpy.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout,
 QGroupBox, QGridLayout, QListWidget, QPushButton, QFileDialog,
 QTabWidget, QLabel, QLineEdit, QScrollArea, QCheckBox, QSpinBox)
@@ -55,6 +56,8 @@ class ProjectWidget(QWidget):
         files_vgroup.glayout.addWidget(self.file_list, 0, 0, 1, 2)
         self.btn_remove_file = QPushButton('Remove selected file')
         files_vgroup.glayout.addWidget(self.btn_remove_file, 1, 0, 1, 2)
+        self.check_copy_files = QCheckBox('Copy files to project folder')
+        files_vgroup.glayout.addWidget(self.check_copy_files, 2, 0, 1, 2)
         
         # Keep track of the channel selection for annotations
         channel_group = VHGroup('Layer to annotate', orientation='V')
@@ -129,6 +132,7 @@ class ProjectWidget(QWidget):
         self.file_list.model().rowsInserted.connect(self._on_add_file)
         self.file_list.currentItemChanged.connect(self._on_select_file)
         self.btn_remove_file.clicked.connect(self._on_remove_file)
+        self.check_copy_files.stateChanged.connect(self._on_check_copy_files)
         self.sel_channel.currentItemChanged.connect(self._update_channels_param)
         self.check_fixed_roi_size.stateChanged.connect(self._on_fixed_roi_size)
         self.btn_add_roi.clicked.connect(self._on_click_add_roi_fixed)
@@ -192,11 +196,18 @@ class ProjectWidget(QWidget):
         if annotation_file.exists():
             annotation_file.unlink()
 
-    def _on_add_file(self):
+    def _on_add_file(self, parent, first, last):
         """Update params when adding or removing a file"""
-
+        
         if self.params is None:
             self._on_click_select_project()
+        if self.check_copy_files.checkState() == 2:
+            file = Path(self.file_list.item(last).text())
+            if file.parts[0] != 'images':
+                copy_to = Path("images") / file.name
+                shutil.copy(file, copy_to)
+                self.file_list.item(last).setText(copy_to.as_posix())
+
         self._update_params_file_list()
         for f in self.params.file_paths:
             if f not in self.params.channels.keys():
@@ -204,6 +215,23 @@ class ProjectWidget(QWidget):
             if f not in self.params.rois.keys():
                 self.params.rois[f] = []
         self.params.save_parameters()
+
+    def _on_check_copy_files(self):
+        """Update file list adding mode when checkbox is toggled"""
+
+        if self.check_copy_files.checkState() == 2:
+            self.file_list.local_copy = True
+            if self.params is None:
+                self._on_click_select_project()
+            os.chdir(self.params.project_path)
+            self.file_list.local_folder = Path("images/")
+            if not self.file_list.local_folder.exists():
+                self.file_list.local_folder.mkdir(parents=True)
+            self.params.local_project = True
+        else:
+            self.file_list.local_copy = False
+            self.file_list.local_folder = None
+            self.params.local_project = False
 
     def _update_params_file_list(self):
         """Update params file list when adding or removing a file"""
@@ -279,8 +307,8 @@ class ProjectWidget(QWidget):
     def _get_current_file(self):
         """Get current file as text"""
 
-        file_index = self.file_list.currentItem().text()
-        return file_index
+        file_name = self.file_list.currentItem().text()
+        return file_name
 
     def _on_click_select_project(self, event=None):
         """Select folder where to save rois and annotations."""
@@ -289,10 +317,12 @@ class ProjectWidget(QWidget):
         # otherwise triggered by firs file drag and drop and files should not be cleared
         clear_files = event is not None
         self.save_annotations()
-        self._close_project(clear_files= clear_files)            
+        self._close_project(clear_files=clear_files)            
 
         project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select folder to store project",options=QFileDialog.DontUseNativeDialog)))
         self.params = pr.create_project(project_path)
+        os.chdir(project_path)
+        self._on_check_copy_files()
 
     def _on_click_select_export_folder(self):
         """Interactively select folder where to save annotations and rois"""
@@ -358,10 +388,14 @@ class ProjectWidget(QWidget):
             project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select a project folder to load",options=QFileDialog.DontUseNativeDialog)))
         else:
             project_path = Path(project_path)
+        os.chdir(project_path)
 
         self.params = pr.load_project(project_path)
         for f in self.params.file_paths:
             self.file_list.addItem(f)
+        if self.params.local_project:
+            self.check_copy_files.setChecked(True)
+            
 
     def save_annotations(self, event=None, filename=None):
         """Save annotations in default location or in the specified location."""
@@ -492,8 +526,3 @@ def scroll_label(default_text = 'default text'):
     myscroll.setWidgetResizable(True)
     myscroll.setWidget(mylabel)
     return mylabel, myscroll
-
-
-@napari_hook_implementation
-def napari_experimental_provide_dock_widget():
-    return (ProjectWidget, {'name': 'Project manager'})

@@ -2,7 +2,7 @@ from pathlib import Path
 from .parameters import Param
 import yaml
 
-def create_project(project_path, file_paths=None, channels={}, rois={}):
+def create_project(project_path, file_paths=None, channels=None, rois=None):
     """
     Create a project.
 
@@ -28,6 +28,10 @@ def create_project(project_path, file_paths=None, channels={}, rois={}):
     if not project_path.exists():
         project_path.mkdir()
 
+    if rois is None:
+        rois = {}
+    if channels is None:
+        channels = {}
     project = Param(
         project_path=project_path,
         file_paths=file_paths,

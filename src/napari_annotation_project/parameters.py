@@ -21,6 +21,8 @@ class Param:
         flat list of rois for each file
     local_project: bool
         if True, images are saved in local folder
+    rgb: bool
+        if True, images are assumed to be RGB XYC
     
     """
     project_path: str = None
@@ -28,6 +30,7 @@ class Param:
     channels: dict = field(default_factory=dict)
     rois: dict = field(default_factory=dict)
     local_project: bool = False
+    rgb: bool = False
 
     def save_parameters(self, alternate_path=None):
         """Save parameters as yml file.

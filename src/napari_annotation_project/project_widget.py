@@ -58,6 +58,8 @@ class ProjectWidget(QWidget):
         files_vgroup.glayout.addWidget(self.btn_remove_file, 1, 0, 1, 2)
         self.check_copy_files = QCheckBox('Copy files to project folder')
         files_vgroup.glayout.addWidget(self.check_copy_files, 2, 0, 1, 2)
+        self.images_are_rgb = QCheckBox('Images are RGB')
+        files_vgroup.glayout.addWidget(self.images_are_rgb, 3, 0, 1, 2)
         
         # Keep track of the channel selection for annotations
         channel_group = VHGroup('Layer to annotate', orientation='V')
@@ -103,20 +105,30 @@ class ProjectWidget(QWidget):
         self._source_folder_name.setText("source")
         self.names_group.glayout.addWidget(self._source_folder_name, 1, 1, Qt.AlignTop)
 
-        self.names_group.glayout.addWidget(QLabel('Source name'), 2, 0, Qt.AlignTop)
-        self._source_name = QLineEdit()
-        self._source_name.setText("img_")
-        self.names_group.glayout.addWidget(self._source_name, 2, 1, Qt.AlignTop)
+        self.names_group.glayout.addWidget(QLabel('Source name prefix'), 2, 0, Qt.AlignTop)
+        self._source_name_prefix = QLineEdit()
+        self._source_name_prefix.setText("img_")
+        self.names_group.glayout.addWidget(self._source_name_prefix, 2, 1, Qt.AlignTop)
 
-        self.names_group.glayout.addWidget(QLabel('Target folder name'), 3, 0, Qt.AlignTop)
+        self.names_group.glayout.addWidget(QLabel('Source name suffix'), 3, 0, Qt.AlignTop)
+        self._source_name_suffix = QLineEdit()
+        self._source_name_suffix.setText("")
+        self.names_group.glayout.addWidget(self._source_name_suffix, 3, 1, Qt.AlignTop)
+
+        self.names_group.glayout.addWidget(QLabel('Target folder name'), 4, 0, Qt.AlignTop)
         self._target_folder_name = QLineEdit()
         self._target_folder_name.setText("target")
-        self.names_group.glayout.addWidget(self._target_folder_name, 3, 1, Qt.AlignTop)
+        self.names_group.glayout.addWidget(self._target_folder_name, 4, 1, Qt.AlignTop)
 
-        self.names_group.glayout.addWidget(QLabel('Target name'), 4, 0, Qt.AlignTop)
-        self._target_name = QLineEdit()
-        self._target_name.setText("target_")
-        self.names_group.glayout.addWidget(self._target_name, 4, 1, Qt.AlignTop)
+        self.names_group.glayout.addWidget(QLabel('Target name prefix'), 5, 0, Qt.AlignTop)
+        self._target_name_prefix = QLineEdit()
+        self._target_name_prefix.setText("target_")
+        self.names_group.glayout.addWidget(self._target_name_prefix, 5, 1, Qt.AlignTop)
+
+        self.names_group.glayout.addWidget(QLabel('Target name suffix'), 6, 0, Qt.AlignTop)
+        self._target_name_suffix = QLineEdit()
+        self._target_name_suffix.setText("")
+        self.names_group.glayout.addWidget(self._target_name_suffix, 6, 1, Qt.AlignTop)
 
         self.btn_export_data = QPushButton("Export annotations")
         self._export_layout.addWidget(self.btn_export_data)
@@ -125,6 +137,7 @@ class ProjectWidget(QWidget):
 
         self.export_folder = None
         self.ndim = None
+        self.annotations_ndim = None
         self.params = None
 
     def _add_connections(self):
@@ -133,6 +146,7 @@ class ProjectWidget(QWidget):
         self.file_list.currentItemChanged.connect(self._on_select_file)
         self.btn_remove_file.clicked.connect(self._on_remove_file)
         self.check_copy_files.stateChanged.connect(self._on_check_copy_files)
+        self.images_are_rgb.stateChanged.connect(self._on_images_are_rgb)
         self.sel_channel.currentItemChanged.connect(self._update_channels_param)
         self.check_fixed_roi_size.stateChanged.connect(self._on_fixed_roi_size)
         self.btn_add_roi.clicked.connect(self._on_click_add_roi_fixed)
@@ -163,6 +177,7 @@ class ProjectWidget(QWidget):
                 raise Exception(f"Image dimension changed. Only ndim={self.ndim} accepted.")
         else:
             self.ndim = self.viewer.layers[0].data.ndim
+            self.annotations_ndim = 2 if self.params.rgb else self.ndim
 
         return True
 
@@ -233,6 +248,14 @@ class ProjectWidget(QWidget):
             self.file_list.local_folder = None
             self.params.local_project = False
 
+    def _on_images_are_rgb(self):
+        """Update params when images are rgb or grayscale"""
+
+        if self.images_are_rgb.checkState() == 2:
+            self.params.rgb = True
+        else:
+            self.params.rgb = False
+
     def _update_params_file_list(self):
         """Update params file list when adding or removing a file"""
 
@@ -290,7 +313,7 @@ class ProjectWidget(QWidget):
         """Add roi of fixed size to current roi layer"""
 
         current_dim_pos = self.viewer.dims.current_step
-        new_roi = np.array(current_dim_pos)*np.ones((4, self.ndim))
+        new_roi = np.array(current_dim_pos)*np.ones((4, self.annotations_ndim))
         new_roi[:,-2::] = np.array([
             [0, 0],
             [0, self.roi_size.value()],
@@ -332,15 +355,25 @@ class ProjectWidget(QWidget):
 
     def _add_annotation_layer(self):
 
+        if self.params.rgb is False:
+            target_dims = self.viewer.layers[0].data.shape
+        else:
+            target_dims = self.viewer.layers[0].data.shape[:-1]
+
         self.viewer.add_labels(
-            data=np.zeros((self.viewer.layers[0].data.shape), dtype=np.uint16),
+            data=np.zeros(target_dims, dtype=np.uint16),
             name='annotations'
             )
 
     def _add_roi_layer(self):
         
+        if self.params.rgb is False:
+            target_ndims = self.viewer.layers[0].data.ndim
+        else:
+            target_ndims = 2
+
         self.roi_layer = self.viewer.add_shapes(
-            ndim = self.viewer.layers[0].data.ndim,
+            ndim = target_ndims,
             name='rois', edge_color='red', face_color=[0,0,0,0], edge_width=10)
         
         # synchronize roi coordinates with those saved in the params
@@ -395,6 +428,8 @@ class ProjectWidget(QWidget):
             self.file_list.addItem(f)
         if self.params.local_project:
             self.check_copy_files.setChecked(True)
+        if self.params.rgb:
+            self.images_are_rgb.setChecked(True)
             
 
     def save_annotations(self, event=None, filename=None):
@@ -428,7 +463,7 @@ class ProjectWidget(QWidget):
                 channel = self.params.channels[self._get_current_file()]
                 image_roi = self.viewer.layers[channel].data.copy()
                 
-                for n in range(self.ndim-2):
+                for n in range(self.annotations_ndim-2):
                     annotations_roi = annotations_roi[limits[0,n]]
                     image_roi = image_roi[limits[0,n]]
 
@@ -442,8 +477,12 @@ class ProjectWidget(QWidget):
                     limits[0,-1]:limits[1,-1]
                 ]
 
-                imsave(images_path.joinpath(f'{self._source_name.text()}{image_counter}.tif'), image_roi, check_contrast=False)
-                imsave(labels_path.joinpath(f'{self._target_name.text()}{image_counter}.tif'), annotations_roi, check_contrast=False)
+                imsave(images_path.joinpath(
+                    f'{self._source_name_prefix.text()}{image_counter}{self._source_name_suffix.text()}.tif'),
+                    image_roi, check_contrast=False)
+                imsave(labels_path.joinpath(
+                    f'{self._target_name_prefix.text()}{image_counter}{self._target_name_suffix.text()}.tif'),
+                    annotations_roi, check_contrast=False)
                 image_counter += 1
                 temp_dict = {'file_name': self.file_list.currentItem().text(), 'image_index': image_counter, 'roi_index': j}
                 name_dict.append(temp_dict)
@@ -491,7 +530,7 @@ class ProjectWidget(QWidget):
         # add rois if any exist
         if current_item.text() in self.params.rois.keys():
             rois = self.params.rois[current_item.text()]
-            rois = [np.array(x).reshape(4,self.ndim) for x in rois]
+            rois = [np.array(x).reshape(4,self.annotations_ndim) for x in rois]
             self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
 
 class VHGroup():

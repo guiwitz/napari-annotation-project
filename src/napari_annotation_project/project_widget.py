@@ -3,15 +3,14 @@ import os
 import shutil
 from pathlib import Path
 import numpy as np
-from skimage.io import imsave, imread
-import yaml
+from skimage.io import imread
+import tifffile
 
 from qtpy.QtWidgets import (QWidget, QHBoxLayout, QVBoxLayout,
 QGroupBox, QGridLayout, QListWidget, QPushButton, QFileDialog,
 QTabWidget, QLabel, QLineEdit, QScrollArea, QCheckBox, QSpinBox)
 from qtpy.QtCore import Qt
 from .folder_list_widget import FolderList
-from .parameters import Param
 from . import project as pr
 
 
@@ -374,7 +373,7 @@ class ProjectWidget(QWidget):
 
         self.roi_layer = self.viewer.add_shapes(
             ndim = target_ndims,
-            name='rois', edge_color='red', face_color=[0,0,0,0], edge_width=10)
+            name='rois', edge_color='red', face_color=np.array([0,0,0,0]), edge_width=10)
         
         # synchronize roi coordinates with those saved in the params
         self.viewer.layers['rois'].events.set_data.connect(self._update_roi_param)
@@ -437,8 +436,7 @@ class ProjectWidget(QWidget):
 
         if 'annotations' in [x.name for x in self.viewer.layers]:    
             data = self.viewer.layers['annotations'].data
-            imsave(self._create_annotation_filename_current(filename), data, compress=1, check_contrast=False)
-
+            tifffile.imwrite(self._create_annotation_filename_current(filename), data)
     def _export_data(self, event=None):
         """Export cropped data of the images and the annotations using the rois."""
 
@@ -477,12 +475,12 @@ class ProjectWidget(QWidget):
                     limits[0,-1]:limits[1,-1]
                 ]
 
-                imsave(images_path.joinpath(
+                tifffile.imwrite(images_path.joinpath(
                     f'{self._source_name_prefix.text()}{image_counter}{self._source_name_suffix.text()}.tif'),
-                    image_roi, check_contrast=False)
-                imsave(labels_path.joinpath(
+                    image_roi)
+                tifffile.imwrite(labels_path.joinpath(
                     f'{self._target_name_prefix.text()}{image_counter}{self._target_name_suffix.text()}.tif'),
-                    annotations_roi, check_contrast=False)
+                    annotations_roi)
                 image_counter += 1
                 temp_dict = {'file_name': self.file_list.currentItem().text(), 'image_index': image_counter, 'roi_index': j}
                 name_dict.append(temp_dict)
@@ -532,6 +530,7 @@ class ProjectWidget(QWidget):
             rois = self.params.rois[current_item.text()]
             rois = [np.array(x).reshape(4,self.annotations_ndim) for x in rois]
             self.viewer.layers['rois'].add_rectangles(rois, edge_color='r', edge_width=10)
+
 
 class VHGroup():
     """Group box with specific layout

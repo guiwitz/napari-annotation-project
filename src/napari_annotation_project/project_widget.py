@@ -437,6 +437,7 @@ class ProjectWidget(QWidget):
         if 'annotations' in [x.name for x in self.viewer.layers]:    
             data = self.viewer.layers['annotations'].data
             tifffile.imwrite(self._create_annotation_filename_current(filename), data)
+    
     def _export_data(self, event=None):
         """Export cropped data of the images and the annotations using the rois."""
 

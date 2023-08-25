@@ -49,22 +49,22 @@ class ProjectWidget(QWidget):
         self.tabs.addTab(self.export, 'Export')
         
         # Create file list where to drag and drop files to add to the project
-        files_vgroup = VHGroup('Files', orientation='G')
-        self._project_layout.addWidget(files_vgroup.gbox)
+        self.files_vgroup = VHGroup('Files', orientation='G')
+        self._project_layout.addWidget(self.files_vgroup.gbox)
         self.file_list = FolderList(napari_viewer)
-        files_vgroup.glayout.addWidget(self.file_list, 0, 0, 1, 2)
+        self.files_vgroup.glayout.addWidget(self.file_list, 0, 0, 1, 2)
         self.btn_remove_file = QPushButton('Remove selected file')
-        files_vgroup.glayout.addWidget(self.btn_remove_file, 1, 0, 1, 2)
+        self.files_vgroup.glayout.addWidget(self.btn_remove_file, 1, 0, 1, 2)
         self.check_copy_files = QCheckBox('Copy files to project folder')
-        files_vgroup.glayout.addWidget(self.check_copy_files, 2, 0, 1, 2)
+        self.files_vgroup.glayout.addWidget(self.check_copy_files, 2, 0, 1, 2)
         self.images_are_rgb = QCheckBox('Images are RGB')
-        files_vgroup.glayout.addWidget(self.images_are_rgb, 3, 0, 1, 2)
+        self.files_vgroup.glayout.addWidget(self.images_are_rgb, 3, 0, 1, 2)
         
         # Keep track of the channel selection for annotations
-        channel_group = VHGroup('Layer to annotate', orientation='V')
-        self._project_layout.addWidget(channel_group.gbox)
+        self.channel_group = VHGroup('Layer to annotate', orientation='V')
+        self._project_layout.addWidget(self.channel_group.gbox)
         self.sel_channel = QListWidget()
-        channel_group.glayout.addWidget(self.sel_channel)
+        self.channel_group.glayout.addWidget(self.sel_channel)
         
         # Create rois of fixed size
         self.check_fixed_roi_size = QCheckBox('Fixed ROI size')

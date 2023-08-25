@@ -332,24 +332,30 @@ class ProjectWidget(QWidget):
         file_name = self.file_list.currentItem().text()
         return file_name
 
-    def _on_click_select_project(self, event=None):
+    def _on_click_select_project(self, event=None, project_path=None):
         """Select folder where to save rois and annotations."""
 
         # if triggered by click to create new project, clear files
-        # otherwise triggered by firs file drag and drop and files should not be cleared
+        # otherwise triggered by first file drag and drop and files should not be cleared
         clear_files = event is not None
         self.save_annotations()
         self._close_project(clear_files=clear_files)            
 
-        project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select folder to store project",options=QFileDialog.DontUseNativeDialog)))
+        if project_path is None:
+            project_path = Path(str(QFileDialog.getExistingDirectory(self, "Select folder to store project",options=QFileDialog.DontUseNativeDialog)))
+        else:
+            project_path = Path(project_path)
         self.params = pr.create_project(project_path)
         os.chdir(project_path)
         self._on_check_copy_files()
 
-    def _on_click_select_export_folder(self):
+    def _on_click_select_export_folder(self, event=None, export_folder=None):
         """Interactively select folder where to save annotations and rois"""
 
-        self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select folder for export",options=QFileDialog.DontUseNativeDialog)))
+        if export_folder is None:
+            self.export_folder = Path(str(QFileDialog.getExistingDirectory(self, "Select folder for export",options=QFileDialog.DontUseNativeDialog)))
+        else:
+            self.export_folder = Path(export_folder)
         self.display_export_folder.setText(self.export_folder.as_posix())
 
     def _add_annotation_layer(self):

@@ -53,12 +53,14 @@ class ProjectWidget(QWidget):
         self._project_layout.addWidget(self.files_vgroup.gbox)
         self.file_list = FolderList(napari_viewer)
         self.files_vgroup.glayout.addWidget(self.file_list, 0, 0, 1, 2)
+        self.btn_add_file = QPushButton('Add file')
+        self.files_vgroup.glayout.addWidget(self.btn_add_file, 1, 0, 1, 2)
         self.btn_remove_file = QPushButton('Remove selected file')
-        self.files_vgroup.glayout.addWidget(self.btn_remove_file, 1, 0, 1, 2)
+        self.files_vgroup.glayout.addWidget(self.btn_remove_file, 2, 0, 1, 2)
         self.check_copy_files = QCheckBox('Copy files to project folder')
-        self.files_vgroup.glayout.addWidget(self.check_copy_files, 2, 0, 1, 2)
+        self.files_vgroup.glayout.addWidget(self.check_copy_files, 3, 0, 1, 2)
         self.images_are_rgb = QCheckBox('Images are RGB')
-        self.files_vgroup.glayout.addWidget(self.images_are_rgb, 3, 0, 1, 2)
+        self.files_vgroup.glayout.addWidget(self.images_are_rgb, 4, 0, 1, 2)
         
         # Keep track of the channel selection for annotations
         self.channel_group = VHGroup('Layer to annotate', orientation='V')
@@ -143,6 +145,7 @@ class ProjectWidget(QWidget):
         
         self.file_list.model().rowsInserted.connect(self._on_add_file)
         self.file_list.currentItemChanged.connect(self._on_select_file)
+        self.btn_add_file.clicked.connect(self._on_click_add_file)
         self.btn_remove_file.clicked.connect(self._on_remove_file)
         self.check_copy_files.stateChanged.connect(self._on_check_copy_files)
         self.images_are_rgb.stateChanged.connect(self._on_images_are_rgb)
@@ -209,6 +212,16 @@ class ProjectWidget(QWidget):
         annotation_file = Path(self._create_annotation_filename_current(file_index))
         if annotation_file.exists():
             annotation_file.unlink()
+
+    def _on_click_add_file(self, event=None):
+        """Add file to file list"""
+
+        if self.params is None:
+            self._on_click_select_project()
+
+        file = Path(str(QFileDialog.getOpenFileName(self, "Select file to add", options=QFileDialog.DontUseNativeDialog)[0]))
+        self.file_list.addItem(file.as_posix())
+                           
 
     def _on_add_file(self, parent, first, last):
         """Update params when adding or removing a file"""

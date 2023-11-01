@@ -33,7 +33,7 @@ https://user-images.githubusercontent.com/4622767/147266002-9c4485c9-5bcc-4c64-9
 ## Installation
 
 
-You can install `napari-annotation-project` via [pip] (**note yet functional**):
+You can install `napari-annotation-project` via [pip]:
 
     pip install napari-annotation-project
 
